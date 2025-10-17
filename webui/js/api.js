@@ -52,10 +52,6 @@ export async function fetchApi(url, request) {
       // retry the request with new token
       csrfToken = null;
       return await _wrap(false);
-    }else if(response.redirected && response.url.endsWith("/login")){
-      // redirect to login
-      window.location.href = response.url;
-      return;
     }
 
     // return the response
@@ -81,14 +77,30 @@ async function getCsrfToken() {
   if (csrfToken) return csrfToken;
   const response = await fetch("/csrf_token", {
     credentials: "same-origin",
-  });
-  if (response.redirected && response.url.endsWith("/login")) {
-    // redirect to login
-    window.location.href = response.url;
-    return;
-  }
-  const json = await response.json();
-  csrfToken = json.token;
-  document.cookie = `csrf_token_${json.runtime_id}=${csrfToken}; SameSite=Strict; Path=/`;
+  }).then((r) => r.json());
+  csrfToken = response.token;
+  document.cookie = `csrf_token_${response.runtime_id}=${csrfToken}; SameSite=Strict; Path=/`;
   return csrfToken;
 }
+
+// Export api object for backward compatibility
+export const api = {
+  callJsonApi,
+  fetchApi,
+  message: async function(command, type = 'tool_code') {
+    // Use the proper message endpoint
+    const data = {
+      text: command,
+      context: globalThis.getContext ? globalThis.getContext() : null,
+      message_id: Date.now() + Math.random()
+    };
+    
+    return await fetchApi('/message_async', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+  }
+};
