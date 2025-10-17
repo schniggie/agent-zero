@@ -13,6 +13,13 @@ class Response:
     break_loop: bool
     additional: dict[str, Any] | None = None
 
+    def to_dict(self):
+        return {
+            "message": self.message,
+            "break_loop": self.break_loop,
+            "additional": self.additional,
+        }
+
 class Tool:
 
     def __init__(self, agent: Agent, name: str, method: str | None, args: dict[str,str], message: str, loop_data: LoopData | None, **kwargs) -> None:
@@ -55,3 +62,19 @@ class Tool:
         words = [words[0].capitalize()] + [word.lower() for word in words[1:]]
         result = ' '.join(words)
         return result
+
+    def update_progress(self, progress):
+        """Update progress for browser control and other tools that need progress tracking"""
+        if hasattr(self, 'log') and self.log:
+            self.log.update(progress=progress)
+        if hasattr(self.agent, 'context') and hasattr(self.agent.context, 'log'):
+            self.agent.context.log.set_progress(progress)
+
+
+# Decorator to register a class as a tool
+def tool(name, **kwargs):
+    def decorator(cls):
+        cls.tool_name = name
+        cls.tool_data = kwargs
+        return cls
+    return decorator
